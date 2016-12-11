@@ -1,7 +1,7 @@
 A. Lons
 December 2016
 
-Two sets of tutorials 
+Two sets of tutorials
 
 This Tutorial is stricktly here to see if I can get up and running by using an interpreture from another machine!
 
