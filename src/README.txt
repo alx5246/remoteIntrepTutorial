@@ -79,6 +79,24 @@ GPU USEAGE, GPU MEMORY PLACEMENT, PAPERS AND INSIGHT
     the input pipeline', see,
     http://stackoverflow.com/questions/36313934/is-it-possible-to-split-a-network-across-multiple-gpus-in-tensorflow
 
+15) I found this tricks of the trade (video) that explains a bunch about assignign to devices!
+    TensorFlow: Tricks of the Trade (Video and Slides) by Yaroslav Bulatov
+    https://www.meetup.com/TensorFlow-London/events/229662676/ (this is where the video recorded)
+    https://blog.altoros.com/video-and-slides-from-the-tensorflow-london-meetup-march-31-2016.html?utm_content=buffer09eba&utm_medium=social&utm_source=twitter.com&utm_campaign=buffer&utm_source=youtube_channel&utm_medium=organic&utm_campaign=youtube
+        -Notes
+        - Queues: Usually driven from threads, generally FIFO queue
+        - Assign Devices to Ops when building the graph, if you go between CPU and GPU, under the hood TF adds 'Send'
+        and 'recieve' nodes for copying of data. The video has pretty graph ~14:00, on how things get set.
+        - You can assign things manually, which is what we need to do. Current TF, just will place everyting on GPU if
+        you can.
+
+16) A tutorial about using GPUs and importantly WHAT TO OPS TO SEND TO GPU! The author notes any large matrix operations
+    should be sent to the GPU as a rule of thumb. One way to make sure that ops not allowed on GPU is to set the
+    allow_soft_placement=True option in the tf.Session(config=tf.ConfigProto(allow_soft_placement=True)), but I am not
+    sure I want to give us this control...., another thing to do is set up the config to log_device_placement=True.
+    see, http://learningtensorflow.com/lesson10/
+
+17) How to setup a loop so handle runnning out of data, see fully_connected_reader.py
 
 
 

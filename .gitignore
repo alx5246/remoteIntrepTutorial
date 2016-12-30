@@ -8,11 +8,10 @@
 *.gz
 #src/full_test/convert_png.py
 
-# Ignore all files in notMNIST_small
-src/full_test/notMNIST_small/*
-# Ignore all files in sub-directoreis of notMNIST_small
-src/full_test/notMNIST_small/*/*
-src/full_test/notMNIST_small/*/*/*
+
+# Ignore all files in full_test
+src/full_test/cifar-10-batches-bin/*
+src/full_test/trainingsum/*/*
 
 # Ignore all files in notMNIST_conv
 src/full_test/notMNIST_conv/*
