@@ -9,15 +9,12 @@
 
 import tensorflow as tf
 
-# Not yet sure how to set this?
-NUMB_EXAMPLES_PER_EPOCH_FOR_TRAIN = 32
 
 def read_binary_image(filename_queue):
     """
     DESCRIPTION
     This is originally taken from teh cifar-10 example (cifar10_input.read_cifar10()), and then modified for my
-    purposes. It should work in a similar way. I am going to add a flattening reshapping so this works with a standard
-    ANN (non-CNN)
+    purposes. It should work in a similar way.
     NOTE
     From the original file "Reads and parses examples from CIFAR10 data files."
     ARGS:
@@ -38,6 +35,7 @@ def read_binary_image(filename_queue):
         class CIFAR10Record(object):
             pass
         result = CIFAR10Record()
+
         # Dimensions of the images in the CIFAR-10 dataset, input format. The following are done to find the size of the
         # files!
         label_bytes = 1  # 2 for CIFAR-100
@@ -77,55 +75,47 @@ def read_binary_image(filename_queue):
         # Convert from [depth, height, width] to [height, width, depth].
         result.uint8image = tf.transpose(depth_major, [1, 2, 0], name='image_transposing')
 
-        # Now I want to convert to gray-scale (I think this will remove the depth)
-        result.grayimage = tf.image.rgb_to_grayscale(result.uint8image, name='image_grayscaling')
-
-        # Now I want to reshape this thing to be flatt
-        result.grayimage_flat = tf.reshape(result.grayimage, [-1], name='image_gray_flatten')
-
-        # This will be the actual image, we make it of float type
-        result.grayimage_flat = tf.cast(result.grayimage_flat, tf.float32, name='grayscale_to_float32')
+        # Casting, I am not sure if I should be doing this?
+        result.fl32_image = tf.cast(result.uint8image, tf.float32)
 
     return result
 
 
-def input_pipline(filenames, batch_size, numb_pre_threads):
+def input_pipline(file_names, batch_size, numb_pre_threads):
     """
     DESCRIPTION
         In accordance with your typical pipeline, we have a seperate method that sets up the data.
-    :param filenames: list of file names that have the data
+    :param file_names: list of file names that have the data
     :param batch_size: the number of examples per batch
+    :param numb_pre_threads:
     :return: A tuple (images, labels, keys) where:
     """
-
-    # I add a scope name to help
     with tf.name_scope('input_pipeline'):
 
         # Generate the file-name queue from given list of filenames. IMPORTANT, this function can read through strings
         # indefinitely, thus you WANT to give a "num_epochs" parameter, when you reach the limit, the "OutOfRange" error
         # will be thrown.
-        filename_queue = tf.train.string_input_producer(filenames, num_epochs=1, name='file_name_queue')
+        filename_queue = tf.train.string_input_producer(file_names, num_epochs=1, name='file_name_queue')
 
         # Read the image using method defined above, this will actually take the queue and one its files, and read some data
         read_input = read_binary_image(filename_queue)
 
-        # Use tf.train.shuffle_batch to shuffle up batches. "min_after_dequeue" defines how big a buffer we will randomly
-        # sample from -- bigger means better shuffling but slower start up and more memory used. "capacity" must be larger
-        # than "min_after_dequeue" and the amount larger determines the maximm we will prefetch. The recommendation:
-        # for capacity is min_after_dequeue + (num_threads + saftey factor) * batch_size
-        # From cifar10_input.input(), setup min numb of exampels in teh queue
+        # Use tf.train.shuffle_batch to shuffle up batches. "min_after_dequeue" defines how big a buffer we will
+        # randomly sample from -- bigger means better shuffling but slower start up and more memory used. "capacity"
+        # must be larger than "min_after_dequeue" and the amount larger determines the maximm we will prefetch. The
+        # recommendation: for capacity is min_after_dequeue + (num_threads + saftey factor) * batch_size
+        # From cifar10_input.input(), setup min numb of examples in the queue
         min_fraction_of_examples_in_queue = .6
-        min_queue_examples = int(NUMB_EXAMPLES_PER_EPOCH_FOR_TRAIN * min_fraction_of_examples_in_queue)
+        min_queue_examples = int(batch_size * min_fraction_of_examples_in_queue)
         min_after_dequeue = min_queue_examples
         capacity = min_queue_examples + 3 * batch_size
-        # Now generate the images [n-images, weidth, height, depth], [labels..] [keyss]
-        imagesFlat, label_batch, key, imagesGray, imagesOrig = tf.train.shuffle_batch([read_input.grayimage_flat, read_input.label,
-                                                                    read_input.key, read_input.grayimage, read_input.uint8image],
+
+        images, label_batch, key = tf.train.shuffle_batch([read_input.fl32_image, read_input.label, read_input.key],
                                                           batch_size=batch_size, num_threads=numb_pre_threads,
                                                           capacity=capacity, min_after_dequeue=min_after_dequeue,
                                                           name='train_shuffle_batch')
 
-    return imagesFlat, label_batch, tf.reshape(key, [batch_size]), imagesGray, imagesOrig
+    return images, label_batch, tf.reshape(key, [batch_size])
 
 
 if __name__ == '__main__':
@@ -135,7 +125,7 @@ if __name__ == '__main__':
     # Get file names
     filenames = ['cifar-10-batches-bin/data_batch_1.bin']
 
-    imagesFlat, labels, key, imagesGray, imagesOrig = input_pipline(filenames, batch_size=4, numb_pre_threads=2)
+    images, labels, key = input_pipline(filenames, batch_size=4, numb_pre_threads=2)
 
     # This is done in one how-to example and in cafir-10 example. NOTE, i have to add the tf.local_variables_init()
     # because I set the num_epoch in the string producer in the other python file.
@@ -153,9 +143,9 @@ if __name__ == '__main__':
 
     for i in range(3):
 
-        a, b, c, d, e = sess.run([imagesFlat, labels, key, imagesGray, imagesOrig])
+        a, b, c = sess.run([images, labels, key])
         print("\n")
-        print("FLATTENED IMAGE: of type %s and size %s" % (type(a), a.shape))
+        print("IMAGE: of type %s and size %s" % (type(a), a.shape))
         print("GRAY IMAGE: of type %s and size %s" % (type(d), d.shape))
         print("ORIG IMAGE: of type %s and size %s" % (type(e), e.shape))
         print("LABELS: of type %s and size %s" % (type(b), b.shape))

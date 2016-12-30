@@ -98,6 +98,9 @@ GPU USEAGE, GPU MEMORY PLACEMENT, PAPERS AND INSIGHT
 
 17) How to setup a loop so handle runnning out of data, see fully_connected_reader.py
 
+18) To see yaroslavvb's how to generate text file you should run meta data
+    https://github.com/yaroslavvb/stuff/commit/aa886026ca3c48e27f776269548b40a2e2bb89ea
+
 
 
 
