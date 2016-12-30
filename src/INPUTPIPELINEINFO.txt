@@ -1,0 +1,119 @@
+A. Lonsberry
+Decemebr 2016
+
+I am here trying to figure how piplines work and in particular all these queues with GPUs. For this reason I have some
+of the cifar-10 code in this directory (annoted with my notes). Below I will outline what I have learned, essentially
+here compiling information.
+
+########################################################################################################################
+
+From tf's How-to, there is a general order to a pipeline: https://www.tensorflow.org/how_tos/reading_data/#batching
+1) A list of file-names.
+
+    This is pretty simple. You just grab a set of file-names. In the cifar-10, when cifar10_input.distored_inputs()
+    is called, it first starts by creating a list of file-names from a directory.
+
+    a) What tf examples do is dump the filenames into a queue. In the how-to and in the cifar-10 example a file-name
+    queue is created by calling,
+
+        filename_queue = tf.train.string_input_producer([..file-names..])
+
+    This 'filename_queue' is in fact a FIFO queue, when it is called it returns a queue. A QueueRunner for the queue
+    is added to the current grpahs QUEUE_RUNNER collection. This FIFO queue holds the fienames until a reader needs
+    them. The queue runner works in a thread separte from teh reader the will pull filenames fro the queue, so the
+    enqueing process does not block the reader.
+
+2) Once we have a filename queue, we create a reader to take the filenames.
+
+    A reader grabs the filenames from the file-name queue. In the cifar-10 example. They build a custom reader. In the
+    how-to documents, they use a built in tf.TestLineReader() to handle CSV file formats.
+
+    In cirfar10_input, they note to use that reader in parallel, and to N reader objects. This is also reiterated
+    in the how-to,
+
+        def input_pipeline(filenames, batch_size, read_threads, num_epochs=None):
+            filename_queue = tf.train.string_input_producer(filenames, num_epcohs, shuffle=True)
+            example_list = [my_file_reader(filename_queue) for _ in range(read_threads)]
+            # my_file_reader() is a reader method!
+
+3) In the typcial pipeline there is also a batching mechanism.
+
+    As stated in the how-to, "at the end of the pipeline, we use another queue to batch together examples for training,
+    evaluation, or inference. For this we use a queue that randomizes the order of examples"
+
+
+########################################################################################################################
+Here I am going to take the examples, periodically placed in the how-to "Reading data" and put them together with
+annotations. I also add some of my own to fill in the gaps.
+
+
+
+    def read_my_file_format(filename_queue):
+        """ This will take a queue of file names and send out an example and label"""
+        # Create a reader, and read the file queue
+        reader = tf.SomeReader()
+        key, record_string = reader.read(filename_queue)
+        # Decode the reader output
+        example, label = tf.some_decoder(record_string)
+        # Process
+        processed_example = some_processing(example)
+        # Send our
+        return processed_example, label
+
+
+    def input_pipeline(filenames, batch_size, read_threads, num_epochs=None):
+
+        filename_queue = tf.train.string_input_producer(filenames, num_epochs=num_epochs, shuffle=True)
+
+        # We can go with a single reader or multiple reader
+        #example, label = read_my_file_format(filename_queue)
+        example_list = [read_my_file_format(filename_queue) for _ in range(read_threads)]
+
+        # min_after_dequeue defines how big a buffer we will randomly sample from -- bigger means better shuffling but
+        # slower start up and more memory used. capacity must be larger than min_after_dequeue and the amount larger
+        # determines the maximum we will prefetch.  Recommendation: min_after_dequeue + (num_threads + a small safety
+        # margin) * batch_size
+        min_after_dequeue = 10000
+        capacity = min_after_dequeue + 3 * batch_size
+        example_batch, label_batch = tf.train.shuffle_batch([example, label],
+
+         batch_size=batch_size, capacity=capacity,
+                                                            min_after_dequeue=min_after_dequeue)
+        # This will return a sample batch
+        return example_batch, label_batch
+
+
+    def train_op(example_batch):
+        # THIS IS NOT IN THE how-to, but I think you need this, this will have the operations to train or whatever.
+
+
+    # I am trying to peice this together by looking at how-to and the cifar-10 example. I think the next step is as
+    # follows: 1) grab filenames, 2)
+
+    # This is done in one how-to example and in cafir-10 example.
+    init_op = tf.global_variables_initialzer()
+
+    # Create a session, this is done in how-to and cifar-10 example (in the cifar-10 the also have some configs)
+    sess = tf.Session()
+
+    # Run the init, this is done in how-to and cifar-10
+    sess.run(init_op)
+
+    # Make a coordinator, this is done in how-to but NOT cifar-10, I am not sure why. However in the online queue
+    # examples I have found see (http://stackoverflow.com/questions/34594198/how-to-prefetch-data-using-a-custom-python-
+    # function-in-tensorflow) they also use a coordinator.
+    coord = tf.train.coordinator()
+    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+    # Run other ops, is training op.
+    for step in range(numb_steps):
+        sess.run(train_op)
+
+    # Now I have to clean up
+    coord.join(threads)
+    sess.close()
+
+
+
+
+

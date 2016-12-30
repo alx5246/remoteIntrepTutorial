@@ -5,5 +5,14 @@
 # IntelliJ project files
 .idea/**
 *.iml
-out
-gen
+*.gz
+#src/full_test/convert_png.py
+
+# Ignore all files in notMNIST_small
+src/full_test/notMNIST_small/*
+# Ignore all files in sub-directoreis of notMNIST_small
+src/full_test/notMNIST_small/*/*
+src/full_test/notMNIST_small/*/*/*
+
+# Ignore all files in notMNIST_conv
+src/full_test/notMNIST_conv/*
