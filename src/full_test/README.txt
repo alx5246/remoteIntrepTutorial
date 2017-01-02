@@ -8,6 +8,12 @@ Here in the code (I will document the results here) I will play with trying diff
 the run times.
 
 ########################################################################################################################
+References that helped here,
+
+1) Apparently the best way to train/test is to create seperate graphs for each.
+    http://stackoverflow.com/questions/37801137/duplicate-a-tensorflow-graph
+
+########################################################################################################################
 What have I learned here?
 
 1) Queues and readers cannot be pinned to the GPU

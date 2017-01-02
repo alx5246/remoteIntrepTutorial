@@ -2,8 +2,8 @@
 # Decemebr 2016
 #
 # This is part of the full test suite, here we are responsible for loading and handling the data! In particular I used
-# much from other repositories,
-#   see https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/how_tos/reading_data/fully_connected_reader.py
+# much from other repositories; links to said repositories are as follows,
+#   https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/how_tos/reading_data/fully_connected_reader.py
 #
 
 
@@ -32,7 +32,7 @@ def read_binary_image(filename_queue):
 
     with tf.name_scope('binary_image_reader'):
 
-        # Using the with gpu fails! These thigns there cannot be put on GPU!
+        # Using the with gpu fails! These things there cannot be put on GPU!
         #with tf.device('/cpu:0'):
         with tf.device('/cpu:0'):
 
@@ -41,8 +41,8 @@ def read_binary_image(filename_queue):
                 pass
             result = CIFAR10Record()
 
-            # Dimensions of the images in the CIFAR-10 dataset, input format. The following are done to find the size of the
-            # files!
+            # Dimensions of the images in the CIFAR-10 dataset, input format. The following are done to find the size of
+            # the files!
             label_bytes = 1  # 2 for CIFAR-100
             result.height = 32
             result.width = 32
@@ -86,7 +86,7 @@ def read_binary_image(filename_queue):
     return result
 
 
-def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs=1):
+def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs = 1):
     """
     DESCRIPTION
         In accordance with your typical pipeline, we have a seperate method that sets up the data.
@@ -142,30 +142,30 @@ if __name__ == '__main__':
 
     # This is done in one how-to example and in cafir-10 example. NOTE, i have to add the tf.local_variables_init()
     # because I set the num_epoch in the string producer in the other python file.
-    #init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()) # <- this works for newer version of TF r0.12.
-    # In tf 011, I have to call different functions,
-    init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables(), name='initialize_ops')
+    # Tensor Flow r0.12
+    init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+    # In tf 011
+    #init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables(), name='initialize_ops')
 
 
     # Create a session, this is done in how-to and cifar-10 example (in the cifar-10 the also have some configs). I use
     # "log_device_placement" because this will output a bunch of stuff.
     sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=False))
 
-    # Now prepare all summaries
-    #mergedSummaries = tf.summary.merge_all() # <- these work in newer versions of TF
-    #trian_writer = tf.summary.FileWriter('trainingsum/train_summary', sess.graph) # # <- these work in newer versions of TF r0.12
-    # For the tf 0.11 version of TF, I have to have the following
-    merged = tf.merge_all_summaries()
-    summary_writer = tf.train.SummaryWriter('summaries/summaary', sess.graph)
+    # Now prepare all summaries (these following lines will be be based on the tensorflow version!)
+    # Tensor Flow r0.12
+    mergedSummaries = tf.summary.merge_all()  # <- these work in newer versions of TF
+    summary_writer = tf.summary.FileWriter('summaries/train_summary', sess.graph)
+    # Tensor Flow 0.11
+    #merged = tf.merge_all_summaries()
+    #summary_writer = tf.train.SummaryWriter('summaries/summary', sess.graph)
 
     # I need to run meta-data
     #   a) To get a time-line to work see running meta-data see http://stackoverflow.com/questions/40190510/tensorflow-
     #   how-to-log-gpu-memory-vram-utilization/40197094
-    #   b) To get detailed run information to text file see http://stackoverflow.com/questions/40190510/tensorflow-how-t
-    #   o-log-gpu-memory-vram-utilization/40197094
+    #   b) To get detailed run information to text file see http://stackoverflow.com/questions/34293714/can-i-measure-the-execution-time-of-individual-operations-with-tensorflow
     run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
     run_metadata = tf.RunMetadata()
-
 
     # Run the init, this is done in how-to and cifar-10
     sess.run(init_op)
@@ -175,10 +175,9 @@ if __name__ == '__main__':
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
 
-    for i in range(10000):
+    for i in range(10):
 
         a, b, c = sess.run([images, labels, key], options=run_options, run_metadata=run_metadata)
-
 
         print("\n")
         print("IMAGE: of type %s and size %s" % (type(a), a.shape))
@@ -189,10 +188,10 @@ if __name__ == '__main__':
         #    out.write(str(run_metadata))
         t1 = timeline.Timeline(run_metadata.step_stats)
         ctf = t1.generate_chrome_trace_format()
-        with open('timeline.json', 'w') as f:
+        with open('summaries/timelines/timeline.json', 'w') as f:
             f.write(ctf)
 
-
+    # Close this up
     summary_writer.close()
 
 

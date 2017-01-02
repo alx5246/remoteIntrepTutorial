@@ -12,16 +12,17 @@ import network_model as nm
 NUM_OF_TRAINING_EXAMPLES = 60000
 
 
-def run_training(filenames, batch_size, n_classes, n_epochs):
+def run_training(train_filenames, test_filenames, batch_size, n_classes, n_epochs):
 
     # Get file names by setting up my readers and queues and pin them to the CPU
     #   see, (https://github.com/tensorflow/models/blob/master/inception/inception/image_processing.py)
     #   in method, inputs(), I think I can "Force all teh input processing onto the CPU" by calling the tf.device here
     #   as long as I have "allow_soft_placement=False" in the session settings.
     with tf.device('/cpu:0'):
-        images, labels, _ = rd.input_pipline(filenames, batch_size=batch_size, numb_pre_threads=4, num_epochs=10)
+        images, labels, _ = rd.input_pipline(train_filenames, batch_size=batch_size, numb_pre_threads=4, num_epochs=n_epochs)
+        t_images, t_labels, _ = rd.input_pipline(test_filenames, batch_size=batch_size, numb_pre_threads=4, num_epochs=n_epochs)
 
-    with tf.device('/gpu:0'):
+    with tf.device('/gpu:1'):
         # Create the network graph
         prediction = nm.generate_Conv_Network(images, batch_size, n_classes)
         # Now we generate a cost function (so tf knows what this is)
@@ -39,12 +40,13 @@ def run_training(filenames, batch_size, n_classes, n_epochs):
         # Create a session, this is done in how-to and cifar-10 example (in the cifar-10 the also have some configs).
         sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=False))
 
-        # Now prepare all summaries
-        # mergedSummaries = tf.summary.merge_all() # <- these work in newer versions of TF
-        # trian_writer = tf.summary.FileWriter('trainingsum/train_summary', sess.graph) # # <- these work in newer versions of TF r0.12
-        # For the tf 0.11 version of TF, I have to have the following
-        merged = tf.merge_all_summaries()
-        summary_writer = tf.train.SummaryWriter('summaries/summary', sess.graph)
+        # Now prepare all summaries (these following lines will be be based on the tensorflow version!)
+        # Tensor Flow r0.12
+        merged = tf.summary.merge_all()  # <- these work in newer versions of TF
+        summary_writer = tf.summary.FileWriter('summaries/train_summary', sess.graph)
+        # Tensor Flow 0.11
+        # merged = tf.merge_all_summaries()
+        # summary_writer = tf.train.SummaryWriter('summaries/summary', sess.graph)
 
         # I need to run meta-data which will help for 'time-lines' and if I want to output more info
         #   a) To get a time-line to work see running meta-data see http://stackoverflow.com/questions/40190510/tensorflow-
@@ -56,9 +58,10 @@ def run_training(filenames, batch_size, n_classes, n_epochs):
 
         # This is done in one how-to example and in cafir-10 example. NOTE, i have to add the tf.local_variables_init()
         # because I set the num_epoch in the string producer in the other python file.
-        # init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()) # <- this works for newer version of TF r0.12.
-        # In tf 0.11 I have to use older functions
-        init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables(), name='initialize_ops')
+        # Tensor Flow r0.12
+        init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer(), name='initialize_op')
+        # In tf 011
+        # init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables(), name='initialize_ops')
 
         # Run the init operation
         sess.run(init_op)
