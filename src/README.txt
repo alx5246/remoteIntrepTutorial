@@ -52,7 +52,7 @@ GPU USEAGE, GPU MEMORY PLACEMENT, PAPERS AND INSIGHT
     "allow_soft_placement" or "device_count" ... etc. The second of the references below, uses things like meta-data and
     more outputs.
     https://github.com/tensorflow/tensorflow/issues/838
-    http://stackoverflow.com/questions/40190510/tensorflow-how-to-log-gpu-memory-vram-utilization/40197094
+    META-DATA: http://stackoverflow.com/questions/40190510/tensorflow-how-to-log-gpu-memory-vram-utilization/40197094
 
 9) In fully_connected_preloaded.py, it seems that the they only put the inputs in the with tf.device('/cpu') block. The
     rest of the operations seem to be outside of that. I am still not sure how to best apply the tf.device() command or
@@ -100,6 +100,9 @@ GPU USEAGE, GPU MEMORY PLACEMENT, PAPERS AND INSIGHT
 
 18) To see yaroslavvb's how to generate text file you should run meta data
     https://github.com/yaroslavvb/stuff/commit/aa886026ca3c48e27f776269548b40a2e2bb89ea
+
+19) To see how to appropriately use the 'timelime', which outputs a very nice gprahical info,
+    see http://stackoverflow.com/questions/34293714/can-i-measure-the-execution-time-of-individual-operations-with-tensorflow
 
 
 

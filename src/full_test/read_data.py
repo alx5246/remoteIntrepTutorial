@@ -8,6 +8,7 @@
 
 
 import tensorflow as tf
+from tensorflow.python.client import timeline
 
 
 def read_binary_image(filename_queue):
@@ -30,6 +31,9 @@ def read_binary_image(filename_queue):
         uint8image: a [height, width, depth] uint8 Tensor with the image data
     """
     with tf.name_scope('binary_image_reader'):
+
+    # Using the with gpu fails! These thigns there cannot be put on GPU!
+    #with tf.device('/cpu:0'):
 
         # (AJL) make a dummy class? They do this in the examples...
         class CIFAR10Record(object):
@@ -76,7 +80,7 @@ def read_binary_image(filename_queue):
         result.uint8image = tf.transpose(depth_major, [1, 2, 0], name='image_transposing')
 
         # Casting, I am not sure if I should be doing this?
-        result.fl32_image = tf.cast(result.uint8image, tf.float32)
+        result.fl32_image = tf.cast(result.uint8image, tf.float32, name='cast_image_to_fl32')
 
     return result
 
@@ -90,49 +94,64 @@ def input_pipline(file_names, batch_size, numb_pre_threads):
     :param numb_pre_threads:
     :return: A tuple (images, labels, keys) where:
     """
-    with tf.name_scope('input_pipeline'):
+    with tf.name_scope('hey'):
+    #with tf.device('/cpu:0'):
+        with tf.name_scope('input_pipeline'):
 
-        # Generate the file-name queue from given list of filenames. IMPORTANT, this function can read through strings
-        # indefinitely, thus you WANT to give a "num_epochs" parameter, when you reach the limit, the "OutOfRange" error
-        # will be thrown.
-        filename_queue = tf.train.string_input_producer(file_names, num_epochs=1, name='file_name_queue')
+            # Generate the file-name queue from given list of filenames. IMPORTANT, this function can read through strings
+            # indefinitely, thus you WANT to give a "num_epochs" parameter, when you reach the limit, the "OutOfRange" error
+            # will be thrown.
+            filename_queue = tf.train.string_input_producer(file_names, num_epochs=1, name='file_name_queue')
 
-        # Read the image using method defined above, this will actually take the queue and one its files, and read some data
-        read_input = read_binary_image(filename_queue)
+            # Read the image using method defined above, this will actually take the queue and one its files, and read some data
+            read_input = read_binary_image(filename_queue)
 
-        # Use tf.train.shuffle_batch to shuffle up batches. "min_after_dequeue" defines how big a buffer we will
-        # randomly sample from -- bigger means better shuffling but slower start up and more memory used. "capacity"
-        # must be larger than "min_after_dequeue" and the amount larger determines the maximm we will prefetch. The
-        # recommendation: for capacity is min_after_dequeue + (num_threads + saftey factor) * batch_size
-        # From cifar10_input.input(), setup min numb of examples in the queue
-        min_fraction_of_examples_in_queue = .6
-        min_queue_examples = int(batch_size * min_fraction_of_examples_in_queue)
-        min_after_dequeue = min_queue_examples
-        capacity = min_queue_examples + 3 * batch_size
+            # Use tf.train.shuffle_batch to shuffle up batches. "min_after_dequeue" defines how big a buffer we will
+            # randomly sample from -- bigger means better shuffling but slower start up and more memory used. "capacity"
+            # must be larger than "min_after_dequeue" and the amount larger determines the maximm we will prefetch. The
+            # recommendation: for capacity is min_after_dequeue + (num_threads + saftey factor) * batch_size
+            # From cifar10_input.input(), setup min numb of examples in the queue
+            min_fraction_of_examples_in_queue = .6
+            min_queue_examples = int(batch_size * min_fraction_of_examples_in_queue)
+            min_after_dequeue = min_queue_examples
+            capacity = min_queue_examples + 3 * batch_size
 
-        images, label_batch, key = tf.train.shuffle_batch([read_input.fl32_image, read_input.label, read_input.key],
-                                                          batch_size=batch_size, num_threads=numb_pre_threads,
-                                                          capacity=capacity, min_after_dequeue=min_after_dequeue,
-                                                          name='train_shuffle_batch')
+            images, label_batch, key = tf.train.shuffle_batch([read_input.fl32_image, read_input.label, read_input.key],
+                                                              batch_size=batch_size, num_threads=numb_pre_threads,
+                                                              capacity=capacity, min_after_dequeue=min_after_dequeue,
+                                                              name='train_shuffle_batch')
 
-    return images, label_batch, tf.reshape(key, [batch_size])
+        return images, label_batch, tf.reshape(key, [batch_size])
 
 
 if __name__ == '__main__':
 
     #Here we will run the test! This will test our abilities to set everything correctly!
 
-    # Get file names
-    filenames = ['cifar-10-batches-bin/data_batch_1.bin']
+    # Get file names, According to,
+    #  (https://github.com/tensorflow/models/blob/master/inception/inception/image_processing.py)
+    # in method, inputs(), I think I can "Force all teh input processing onto the CPU" by calling the tf.device here.
+    with tf.device('/gpu:0'):
+        filenames = ['cifar-10-batches-bin/data_batch_1.bin']
+        images, labels, key = input_pipline(filenames, batch_size=10, numb_pre_threads=8)
 
-    images, labels, key = input_pipline(filenames, batch_size=4, numb_pre_threads=2)
 
     # This is done in one how-to example and in cafir-10 example. NOTE, i have to add the tf.local_variables_init()
     # because I set the num_epoch in the string producer in the other python file.
-    init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+    #init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+    #init_op = tf.group(tf.local_variables_initializer())
+    init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables(), name='initialize_ops')
+
+    # Create some
 
     # Create a session, this is done in how-to and cifar-10 example (in the cifar-10 the also have some configs)
-    sess = tf.Session()
+    sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
+
+
+    # Running meta-data see http://stackoverflow.com/questions/40190510/tensorflow-how-to-log-gpu-memory-vram-utilization/40197094
+    # I cannot get this to run
+    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+    run_metadata = tf.RunMetadata()
 
     # Run the init, this is done in how-to and cifar-10
     sess.run(init_op)
@@ -141,14 +160,23 @@ if __name__ == '__main__':
     coord = tf.train.Coordinator()
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-    for i in range(3):
 
-        a, b, c = sess.run([images, labels, key])
+
+    for i in range(10000):
+
+        a, b, c = sess.run([images, labels, key], options=run_options, run_metadata=run_metadata)
+
+
         print("\n")
         print("IMAGE: of type %s and size %s" % (type(a), a.shape))
-        print("GRAY IMAGE: of type %s and size %s" % (type(d), d.shape))
-        print("ORIG IMAGE: of type %s and size %s" % (type(e), e.shape))
         print("LABELS: of type %s and size %s" % (type(b), b.shape))
+
+        # with open("meta_data_run.txt", "w") as out:
+        #    out.write(str(run_metadata))
+        t1 = timeline.Timeline(run_metadata.step_stats)
+        ctf = t1.generate_chrome_trace_format()
+        with open('timeline.json', 'w') as f:
+            f.write(ctf)
 
 
 
