@@ -104,6 +104,10 @@ GPU USEAGE, GPU MEMORY PLACEMENT, PAPERS AND INSIGHT
 19) To see how to appropriately use the 'timelime', which outputs a very nice gprahical info,
     see http://stackoverflow.com/questions/34293714/can-i-measure-the-execution-time-of-individual-operations-with-tensorflow
 
+20) Handling running out of examples, the fully_connected_ready.py example shows how to setup a loop to handle running
+    out of examples!
+    see, https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/how_tos/reading_data/fully_connected_reader.py
+
 
 
 

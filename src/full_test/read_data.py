@@ -10,7 +10,6 @@
 import tensorflow as tf
 from tensorflow.python.client import timeline
 
-
 def read_binary_image(filename_queue):
     """
     DESCRIPTION
@@ -30,62 +29,64 @@ def read_binary_image(filename_queue):
         label: an int32 Tensor with the label in the range 0..9.
         uint8image: a [height, width, depth] uint8 Tensor with the image data
     """
+
     with tf.name_scope('binary_image_reader'):
 
-    # Using the with gpu fails! These thigns there cannot be put on GPU!
-    #with tf.device('/cpu:0'):
+        # Using the with gpu fails! These thigns there cannot be put on GPU!
+        #with tf.device('/cpu:0'):
+        with tf.device('/cpu:0'):
 
-        # (AJL) make a dummy class? They do this in the examples...
-        class CIFAR10Record(object):
-            pass
-        result = CIFAR10Record()
+            # (AJL) make a dummy class? They do this in the examples...
+            class CIFAR10Record(object):
+                pass
+            result = CIFAR10Record()
 
-        # Dimensions of the images in the CIFAR-10 dataset, input format. The following are done to find the size of the
-        # files!
-        label_bytes = 1  # 2 for CIFAR-100
-        result.height = 32
-        result.width = 32
-        result.depth = 3
-        image_bytes = result.height * result.width * result.depth
-        # Every record consists of a label followed by the image, with a fixed number of bytes for each.
-        record_bytes = label_bytes + image_bytes
+            # Dimensions of the images in the CIFAR-10 dataset, input format. The following are done to find the size of the
+            # files!
+            label_bytes = 1  # 2 for CIFAR-100
+            result.height = 32
+            result.width = 32
+            result.depth = 3
+            image_bytes = result.height * result.width * result.depth
+            # Every record consists of a label followed by the image, with a fixed number of bytes for each.
+            record_bytes = label_bytes + image_bytes
 
-        # Read a record, getting file names from the filename_queue. Readers are tensorflows way for reading data formats.
-        # No header or footer in the CIFAR-10 format, so we leave header_bytes and footer_bytes at their default of 0.
-        reader = tf.FixedLengthRecordReader(record_bytes=record_bytes, name='record_reader')
-        # (AJL) the "reader" will dequeue a work unit from teh queue if necessary (e.g. when the Reader needs to start
-        # reading from a new file since it has finished with the previous file)
-        result.key, value = reader.read(filename_queue, name='reading_record')
+            # Read a record, getting file names from the filename_queue. Readers are tensorflows way for reading data formats.
+            # No header or footer in the CIFAR-10 format, so we leave header_bytes and footer_bytes at their default of 0.
+            reader = tf.FixedLengthRecordReader(record_bytes=record_bytes, name='record_reader')
+            # (AJL) the "reader" will dequeue a work unit from teh queue if necessary (e.g. when the Reader needs to start
+            # reading from a new file since it has finished with the previous file)
+            result.key, value = reader.read(filename_queue, name='reading_record')
 
-        # Convert from a string to a vector of uint8 that is "record_bytes" long, that is we
-        example_in_bytes = tf.decode_raw(value, tf.uint8, name='decoding_raw_bytes')
+            # Convert from a string to a vector of uint8 that is "record_bytes" long, that is we
+            example_in_bytes = tf.decode_raw(value, tf.uint8, name='decoding_raw_bytes')
 
-        # The first bytes represent the label, which we convert from uint8->int32. This is just the label
-        result.label = tf.cast(tf.slice(example_in_bytes, [0], [label_bytes], name='slice_label_bytes'), tf.int32, name='cast_label_bytes')
-        # We make this scalar label a one-hot type
-        result.label = tf.one_hot(result.label, depth=10, name='label_scaler_to_vec')
-        # Flatten label to 1D, rather than 2D with 1-row
-        result.label = tf.reshape(result.label, [-1], name='label_flatten')
+            # The first bytes represent the label, which we convert from uint8->int32. This is just the label
+            result.label = tf.cast(tf.slice(example_in_bytes, [0], [label_bytes], name='slice_label_bytes'), tf.int32, name='cast_label_bytes')
+            # We make this scalar label a one-hot type
+            result.label = tf.one_hot(result.label, depth=10, name='label_scaler_to_vec')
+            # Flatten label to 1D, rather than 2D with 1-row
+            result.label = tf.reshape(result.label, [-1], name='label_flatten')
 
-        # The remaining bytes after the label represent the image, which we reshape from [depth * height * width] to [depth,
-        # height, width]. I change from tf.strided_slice(), because it was not working, and instead went to tf.slice so I
-        # also had to change the paramters as they are different for the different function. Thus here I am returning
-        # a single sliced imaged.
-        ourImage = tf.slice(example_in_bytes, [label_bytes], [image_bytes], name='slice_image_bytes')
+            # The remaining bytes after the label represent the image, which we reshape from [depth * height * width] to [depth,
+            # height, width]. I change from tf.strided_slice(), because it was not working, and instead went to tf.slice so I
+            # also had to change the paramters as they are different for the different function. Thus here I am returning
+            # a single sliced imaged.
+            ourImage = tf.slice(example_in_bytes, [label_bytes], [image_bytes], name='slice_image_bytes')
 
-        # Reshape the image into its proper form
-        depth_major = tf.reshape(ourImage, [result.depth, result.height, result.width], name='image_first_reshaping')
+            # Reshape the image into its proper form
+            depth_major = tf.reshape(ourImage, [result.depth, result.height, result.width], name='image_first_reshaping')
 
-        # Convert from [depth, height, width] to [height, width, depth].
-        result.uint8image = tf.transpose(depth_major, [1, 2, 0], name='image_transposing')
+            # Convert from [depth, height, width] to [height, width, depth].
+            result.uint8image = tf.transpose(depth_major, [1, 2, 0], name='image_transposing')
 
-        # Casting, I am not sure if I should be doing this?
-        result.fl32_image = tf.cast(result.uint8image, tf.float32, name='cast_image_to_fl32')
+            # Casting, I am not sure if I should be doing this?
+            result.fl32_image = tf.cast(result.uint8image, tf.float32, name='cast_image_to_fl32')
 
     return result
 
 
-def input_pipline(file_names, batch_size, numb_pre_threads):
+def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs=1):
     """
     DESCRIPTION
         In accordance with your typical pipeline, we have a seperate method that sets up the data.
@@ -94,14 +95,16 @@ def input_pipline(file_names, batch_size, numb_pre_threads):
     :param numb_pre_threads:
     :return: A tuple (images, labels, keys) where:
     """
-    with tf.name_scope('hey'):
-    #with tf.device('/cpu:0'):
+
+    # This will no work if we pin to the GPU!
+    with tf.device('/cpu:0'):
+
         with tf.name_scope('input_pipeline'):
 
             # Generate the file-name queue from given list of filenames. IMPORTANT, this function can read through strings
             # indefinitely, thus you WANT to give a "num_epochs" parameter, when you reach the limit, the "OutOfRange" error
             # will be thrown.
-            filename_queue = tf.train.string_input_producer(file_names, num_epochs=1, name='file_name_queue')
+            filename_queue = tf.train.string_input_producer(file_names, num_epochs=num_epochs, name='file_name_queue')
 
             # Read the image using method defined above, this will actually take the queue and one its files, and read some data
             read_input = read_binary_image(filename_queue)
@@ -128,30 +131,41 @@ if __name__ == '__main__':
 
     #Here we will run the test! This will test our abilities to set everything correctly!
 
-    # Get file names, According to,
-    #  (https://github.com/tensorflow/models/blob/master/inception/inception/image_processing.py)
-    # in method, inputs(), I think I can "Force all teh input processing onto the CPU" by calling the tf.device here.
-    with tf.device('/gpu:0'):
+    # Get file names by setting up my readers and queues,
+    #  see, (https://github.com/tensorflow/models/blob/master/inception/inception/image_processing.py)
+    # in method, inputs(), I think I can "Force all teh input processing onto the CPU" by calling the tf.device here as
+    # long as I have "allow_soft_placement=False" in the session settings.
+    with tf.device('/cpu:0'):
         filenames = ['cifar-10-batches-bin/data_batch_1.bin']
         images, labels, key = input_pipline(filenames, batch_size=10, numb_pre_threads=8)
 
 
     # This is done in one how-to example and in cafir-10 example. NOTE, i have to add the tf.local_variables_init()
     # because I set the num_epoch in the string producer in the other python file.
-    #init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
-    #init_op = tf.group(tf.local_variables_initializer())
+    #init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer()) # <- this works for newer version of TF r0.12.
+    # In tf 011, I have to call different functions,
     init_op = tf.group(tf.initialize_all_variables(), tf.initialize_local_variables(), name='initialize_ops')
 
-    # Create some
 
-    # Create a session, this is done in how-to and cifar-10 example (in the cifar-10 the also have some configs)
-    sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
+    # Create a session, this is done in how-to and cifar-10 example (in the cifar-10 the also have some configs). I use
+    # "log_device_placement" because this will output a bunch of stuff.
+    sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=False))
 
+    # Now prepare all summaries
+    #mergedSummaries = tf.summary.merge_all() # <- these work in newer versions of TF
+    #trian_writer = tf.summary.FileWriter('trainingsum/train_summary', sess.graph) # # <- these work in newer versions of TF r0.12
+    # For the tf 0.11 version of TF, I have to have the following
+    merged = tf.merge_all_summaries()
+    summary_writer = tf.train.SummaryWriter('summaries/summaary', sess.graph)
 
-    # Running meta-data see http://stackoverflow.com/questions/40190510/tensorflow-how-to-log-gpu-memory-vram-utilization/40197094
-    # I cannot get this to run
+    # I need to run meta-data
+    #   a) To get a time-line to work see running meta-data see http://stackoverflow.com/questions/40190510/tensorflow-
+    #   how-to-log-gpu-memory-vram-utilization/40197094
+    #   b) To get detailed run information to text file see http://stackoverflow.com/questions/40190510/tensorflow-how-t
+    #   o-log-gpu-memory-vram-utilization/40197094
     run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
     run_metadata = tf.RunMetadata()
+
 
     # Run the init, this is done in how-to and cifar-10
     sess.run(init_op)
@@ -161,7 +175,6 @@ if __name__ == '__main__':
     threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
 
-
     for i in range(10000):
 
         a, b, c = sess.run([images, labels, key], options=run_options, run_metadata=run_metadata)
@@ -169,6 +182,7 @@ if __name__ == '__main__':
 
         print("\n")
         print("IMAGE: of type %s and size %s" % (type(a), a.shape))
+        print("IMAGE: is of ")
         print("LABELS: of type %s and size %s" % (type(b), b.shape))
 
         # with open("meta_data_run.txt", "w") as out:
@@ -179,6 +193,7 @@ if __name__ == '__main__':
             f.write(ctf)
 
 
+    summary_writer.close()
 
 
     # Now I have to clean up
