@@ -91,7 +91,12 @@ def run_training(train_filenames, batch_size, n_classes, n_epochs=1):
                 # Test over last batch!
                 summary, acc = sess.run([merged, accuracy], options=run_options, run_metadata=run_metadata)
 
-                print('Accuracy:', acc)
+                print('Epoch ',i)
+                print('  Accuracy:', acc)
+
+                # Now save the graph!
+                path_to_checkpoint = saver.save(sess, 'summaries/chk_pt/model.ckpt', global_step=i)
+                print('  Path to check pont: ', path_to_checkpoint)
 
             # with open("meta_data_run.txt", "w") as out:
             #    out.write(str(run_metadata))
@@ -100,8 +105,7 @@ def run_training(train_filenames, batch_size, n_classes, n_epochs=1):
             with open('timeline.json', 'w') as f:
                 f.write(ctf)
 
-            # Now save the graph!
-            saver.save(sess, 'summaries/chk_pt/model.ckpt')
+
 
             # Now I have to clean up
             summary_writer.close()
@@ -115,6 +119,9 @@ if __name__ == '__main__':
     n_classes = 10
     n_epochs = 50
     run_training(filenames, batch_size, n_classes, n_epochs)
+    ev.run_training(filenames, batch_size, n_classes, n_epochs=1)
+    ev.run_training(filenames, batch_size, n_classes, n_epochs=1)
+    ev.run_training(filenames, batch_size, n_classes, n_epochs=1)
 
 
 
