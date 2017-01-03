@@ -119,10 +119,20 @@ def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs = 1):
             min_after_dequeue = min_queue_examples
             capacity = min_queue_examples + 3 * batch_size
 
+            # If I want to shuffle input!
+            """
             images, label_batch, key = tf.train.shuffle_batch([read_input.fl32_image, read_input.label, read_input.key],
                                                               batch_size=batch_size, num_threads=numb_pre_threads,
                                                               capacity=capacity, min_after_dequeue=min_after_dequeue,
                                                               name='train_shuffle_batch')
+            """
+            # If I do not wany to shuffle input!
+
+            images, label_batch, key = tf.train.batch([read_input.fl32_image, read_input.label, read_input.key],
+                                                      batch_size=batch_size, num_threads=numb_pre_threads,
+                                                      capacity=capacity,
+                                                      name='batch_generator')
+
 
         return images, label_batch, tf.reshape(key, [batch_size])
 

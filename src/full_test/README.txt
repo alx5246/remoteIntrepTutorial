@@ -13,6 +13,13 @@ References that helped here,
 1) Apparently the best way to train/test is to create seperate graphs for each.
     http://stackoverflow.com/questions/37801137/duplicate-a-tensorflow-graph
 
+2) How to save and load variables for inference graph,
+    http://stackoverflow.com/questions/34454901/transfer-parameters-from-training-to-inference-graph
+
+3) Stuggling to get the eval() graph to work because the queue is empty... however it sounds like this is because I
+    should only be restoring trainable variables
+    http://stackoverflow.com/questions/37632102/tensorflow-trouble-re-opening-queues-after-restoring-a-session
+
 ########################################################################################################################
 What have I learned here?
 
@@ -34,3 +41,6 @@ What have I learned here?
     given allow_soft_placement=True
         e) main input_pipeline pinned to GPU, input_pipline() unpinned, read_binary_image() unpinned
             RUNS
+
+2) Finally got the evaluate thing to work by first calling an initializer() op, then restoring a saved checkpoint, but
+    using a special call: saver = tf.train.Saver(tf.trainable_variables())
