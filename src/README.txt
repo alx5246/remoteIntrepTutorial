@@ -108,6 +108,20 @@ GPU USEAGE, GPU MEMORY PLACEMENT, PAPERS AND INSIGHT
     out of examples!
     see, https://github.com/tensorflow/tensorflow/blob/master/tensorflow/examples/how_tos/reading_data/fully_connected_reader.py
 
+21) Killing tensorboard? I have used # netstat -tulpn to see what PID is using the port
+
+22) Taking all the GPU memory, on both GPUs even though only one was specified? We can fix that
+    https://github.com/tensorflow/tensorflow/issues/5066
+    http://stackoverflow.com/questions/37893755/tensorflow-set-cuda-visible-devices-within-jupyter
+
+23) More on GPU setting and how to use device naming ie "/gpu:0" when also using CUDA_VISABLE_DEVICES
+    from vrv commented on Nov 14, 2016, " One point of clarification. "/gpu:0" will always be the first logical GPU
+    available in the process. So if you set CUDA_VISIBLE_DEVICES=2, your program should still use "/gpu:0", because only
+    one physical GPU is made visible to the process as "logical GPU id 0". If you set CUDA_VISIBLE_DEVICES=4,2, then
+    "/gpu:0 would be the 4th physical GPU, and "/gpu:1" would be the 2nd physical GPU."  This is incredibly insightful
+    https://github.com/tensorflow/tensorflow/issues/5480
+
+
 
 
 

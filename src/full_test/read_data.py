@@ -86,7 +86,7 @@ def read_binary_image(filename_queue):
     return result
 
 
-def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs = 1):
+def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs = 1, output_type = 'train'):
     """
     DESCRIPTION
         In accordance with your typical pipeline, we have a seperate method that sets up the data.
@@ -104,7 +104,7 @@ def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs = 1):
             # Generate the file-name queue from given list of filenames. IMPORTANT, this function can read through strings
             # indefinitely, thus you WANT to give a "num_epochs" parameter, when you reach the limit, the "OutOfRange" error
             # will be thrown.
-            filename_queue = tf.train.string_input_producer(file_names, num_epochs=num_epochs, name='file_name_queue')
+            filename_queue = tf.train.string_input_producer(file_names, num_epochs=num_epochs, name='file_name_queue', capacity=100)
 
             # Read the image using method defined above, this will actually take the queue and one its files, and read some data
             read_input = read_binary_image(filename_queue)
@@ -117,21 +117,24 @@ def input_pipline(file_names, batch_size, numb_pre_threads, num_epochs = 1):
             min_fraction_of_examples_in_queue = .6
             min_queue_examples = int(batch_size * min_fraction_of_examples_in_queue)
             min_after_dequeue = min_queue_examples
-            capacity = min_queue_examples + 3 * batch_size
+            capacity = min_queue_examples + 10 * batch_size
+            print("\nInput-pipe,")
+            print("  capacity .....", capacity)
+            print("  batch_size ...", batch_size)
+            print("  min_after.....", min_after_dequeue)
 
-            # If I want to shuffle input!
-            """
-            images, label_batch, key = tf.train.shuffle_batch([read_input.fl32_image, read_input.label, read_input.key],
-                                                              batch_size=batch_size, num_threads=numb_pre_threads,
-                                                              capacity=capacity, min_after_dequeue=min_after_dequeue,
-                                                              name='train_shuffle_batch')
-            """
+            if output_type == 'train':
+                # If I want to shuffle input!
+                images, label_batch, key = tf.train.shuffle_batch([read_input.fl32_image, read_input.label, read_input.key],
+                                                                  batch_size=batch_size, num_threads=numb_pre_threads,
+                                                                  capacity=capacity, min_after_dequeue=min_after_dequeue,
+                                                                  name='train_shuffle_batch')
             # If I do not wany to shuffle input!
-
-            images, label_batch, key = tf.train.batch([read_input.fl32_image, read_input.label, read_input.key],
-                                                      batch_size=batch_size, num_threads=numb_pre_threads,
-                                                      capacity=capacity,
-                                                      name='batch_generator')
+            else:
+                images, label_batch, key = tf.train.batch([read_input.fl32_image, read_input.label, read_input.key],
+                                                          batch_size=batch_size, num_threads=numb_pre_threads,
+                                                          capacity=capacity,
+                                                          name='batch_generator')
 
 
         return images, label_batch, tf.reshape(key, [batch_size])
@@ -191,15 +194,16 @@ if __name__ == '__main__':
 
         print("\n")
         print("IMAGE: of type %s and size %s" % (type(a), a.shape))
-        print("IMAGE: is of ")
         print("LABELS: of type %s and size %s" % (type(b), b.shape))
+        print("Label output")
+        print(b)
 
         # with open("meta_data_run.txt", "w") as out:
         #    out.write(str(run_metadata))
-        t1 = timeline.Timeline(run_metadata.step_stats)
-        ctf = t1.generate_chrome_trace_format()
-        with open('summaries/timelines/timeline.json', 'w') as f:
-            f.write(ctf)
+        #t1 = timeline.Timeline(run_metadata.step_stats)
+        #ctf = t1.generate_chrome_trace_format()
+        #with open('summaries/timelines/timeline.json', 'w') as f:
+        #    f.write(ctf)
 
     # Close this up
     summary_writer.close()

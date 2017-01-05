@@ -15,6 +15,7 @@ NUM_OF_TRAINING_EXAMPLES = 60000
 def run_training(train_filenames, batch_size, n_classes, n_epochs=1):
 
     with tf.Graph().as_default() as g:
+
         # Get images and labels,
         # Get file names by setting up my readers and queues and pin them to the CPU
         #   see, (https://github.com/tensorflow/models/blob/master/inception/inception/image_processing.py)

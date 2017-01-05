@@ -15,10 +15,12 @@ def variable_summaries(var):
     # Remember name_scopes inheret
     with tf.device('/cpu:0'):
         with tf.name_scope('summaries'):
-            mean = tf.reduce_mean(var)
+            with tf.device('/cpu:0'):
+                mean = tf.reduce_mean(var)
             tf.summary.scalar('mean', mean)
             with tf.name_scope('stddev'):
-                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+                with tf.device('/cpu:0'):
+                    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
             tf.summary.scalar('stddev', stddev)
             tf.summary.scalar('min', tf.reduce_min(var))
             tf.summary.scalar('max', tf.reduce_max(var))
@@ -35,7 +37,7 @@ def _variable_on_cpu(name, shape, initializer):
     :param initializer: initializer for the tf.Variable
     :return: Variable tensor
     """
-    with tf.device('/cpu:0'):
+    with tf.device('/gpu:0'):
         dtype = tf.float32
         var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
     return var
@@ -116,6 +118,7 @@ def gen_output_layer(input, weight_shape, bias_shape):
 
     output = tf.nn.bias_add(tf.matmul(input, weights, name='mat_mult'), biases, name='add_biases_op')
 
+
     return output
 
 
@@ -130,38 +133,45 @@ def generate_Conv_Network(images, batch_size, n_classes):
     """
 
     # First convoltuion layer
-    with tf.name_scope('layer_1_conv'):
-        with tf.variable_scope('layer_1_conv'):
-            conv_1 = gen_2dconv(images, [5, 5, 3, 32], [1, 1, 1, 1], [32])
+    # I do not need to duplicate scope, tf.variable_scope seesm to act like tf.name_scope when it comes to graph
+    #with tf.name_scope('layer_1_conv'):
+    with tf.variable_scope('layer_1_conv'):
+        conv_1 = gen_2dconv(images, [3, 3, 3, 32], [1, 1, 1, 1], [32])
+
+    with tf.variable_scope('layer_1_1_conv'):
+        conv_1_1 = gen_2dconv(conv_1, [5, 5, 32, 32], [1, 1, 1, 1], [32])
 
     # First max-pooling operation
     with tf.name_scope('layer_1_pool'):
-        pool_1 = gen_max_pooling(conv_1, [1, 2, 2, 1], [1, 2, 2, 1])
+        pool_1 = gen_max_pooling(conv_1_1, [1, 2, 2, 1], [1, 2, 2, 1])
 
     # Second convolution layer
-    with tf.name_scope('layer_2_conv'):
-        with tf.variable_scope('layer_2_conv'):
-            conv_2 = gen_2dconv(pool_1, [5, 5, 32, 64], [1, 1, 1, 1], [64])
+    #with tf.name_scope('layer_2_conv'):
+    with tf.variable_scope('layer_2_conv'):
+        conv_2 = gen_2dconv(pool_1, [3, 3, 32, 64], [1, 1, 1, 1], [64])
+
+    with tf.variable_scope('layer_2_1_conv'):
+        conv_2_1 = gen_2dconv(conv_2, [5, 5, 64, 64], [1, 1, 1, 1], [64])
 
     # Second max-pooling layer
     with tf.name_scope('layer_2_pool'):
-        pool_2 = gen_max_pooling(conv_2, [1, 2, 2, 1], [1, 2, 2, 1])
+        pool_2 = gen_max_pooling(conv_2_1, [1, 2, 2, 1], [1, 2, 2, 1])
 
     # Now a hidden layer!
-    with tf.name_scope('layer_3_hidden'):
-        with tf.variable_scope('layer_3_hidden'):
-            # We have to reshape here first! We do this by knowning the batch-size, and then using '-1' to automatically
-            # select the second dimension. Thus after we reshape we will be left with a tensor of shape [num batches,
-            # size of flattened conv output]
-            rehaped_conv_output = tf.reshape(pool_2, [batch_size, -1])
-            # I am getting the shape of the output, simply following what is done in cifar10.inference(images)
-            flattened_dim = rehaped_conv_output.get_shape()[1].value
-            hid_3 = gen_hidden_layer(rehaped_conv_output, [flattened_dim, 128], [128])
+    #with tf.name_scope('layer_3_hidden'):
+    with tf.variable_scope('layer_3_hidden'):
+        # We have to reshape here first! We do this by knowning the batch-size, and then using '-1' to automatically
+        # select the second dimension. Thus after we reshape we will be left with a tensor of shape [num batches,
+        # size of flattened conv output]
+        rehaped_conv_output = tf.reshape(pool_2, [batch_size, -1], name='rehape')
+        # I am getting the shape of the output, simply following what is done in cifar10.inference(images)
+        flattened_dim = rehaped_conv_output.get_shape()[1].value
+        hid_3 = gen_hidden_layer(rehaped_conv_output, [flattened_dim, 4096], [4096])
 
     # Now add the output layer
-    with tf.name_scope('layer_4_output'):
-        with tf.variable_scope('layer_4_output'):
-            net_output = gen_output_layer(hid_3, [128, n_classes], [n_classes])
+    #with tf.name_scope('layer_4_output'):
+    with tf.variable_scope('layer_4_output'):
+        net_output = gen_output_layer(hid_3, [4096, n_classes], [n_classes])
 
     return net_output
 

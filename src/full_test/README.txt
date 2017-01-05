@@ -3,7 +3,11 @@ December 2016
 
 README for all files in src/full_test
 
-Here I want to play with a full test on the GPU, specifically with proper allocation of things pinned to GPU vs. CPU.
+Here I want to play with a full test on the GPU, specifically with proper allocation of
+a) Things pinned to GPU vs CPU
+b) Separate graphs (but with shared and reinstantiated variables) for training and testing as this seems to be the norm.
+
+
 Here in the code (I will document the results here) I will play with trying different placements to see how it effects
 the run times.
 
@@ -41,6 +45,20 @@ References that helped here,
 8) More and actual info on "Saver" objects
     https://github.com/tensorflow/tensorflow/blob/master/tensorflow/g3doc/api_docs/python/functions_and_classes/shard5/tf.train.Saver.md
 
+9) Too many GPUs? Appenenlty you need to specify the GPUs (like you do LD_LIBRARY...) you will be using or TF will take
+    over.
+
+10) Taking all the GPU memory, on both GPUs even though only one was specified? We can fix that
+    https://github.com/tensorflow/tensorflow/issues/5066
+    http://stackoverflow.com/questions/37893755/tensorflow-set-cuda-visible-devices-within-jupyter
+
+11) More on GPU setting and how to use device naming ie "/gpu:0" when also using CUDA_VISABLE_DEVICES
+    from vrv commented on Nov 14, 2016, " One point of clarification. "/gpu:0" will always be the first logical GPU
+    available in the process. So if you set CUDA_VISIBLE_DEVICES=2, your program should still use "/gpu:0", because only
+    one physical GPU is made visible to the process as "logical GPU id 0". If you set CUDA_VISIBLE_DEVICES=4,2, then
+    "/gpu:0 would be the 4th physical GPU, and "/gpu:1" would be the 2nd physical GPU."  This is incredibly insightful
+    https://github.com/tensorflow/tensorflow/issues/5480
+
 ########################################################################################################################
 What have I learned here?
 
@@ -63,5 +81,18 @@ What have I learned here?
         e) main input_pipeline pinned to GPU, input_pipline() unpinned, read_binary_image() unpinned
             RUNS
 
-2) Finally got the evaluate mathod to work by first calling an initializer() op, then restoring a saved checkpoint, but
+2) Finally got the SEPERATE EVALUTE METHOD to work by first calling an initializer() op, then restoring a saved checkpoint, but
     using a special call: saver = tf.train.Saver(tf.trainable_variables())
+
+3) Major time savings by NOT pinning variables to CPU!
+    In teh "cifar10.py" example, the authors pinned the network variables to the CPU.. so I did the same. However, when
+    I pinned these to the GPU, things went a bit FASTER!. But I have still have issues, like much blank time in my
+    time-line
+
+    a) Pin all network variables (weights and biases to GPU vs CPU) changes run time by a factor of 10%, but I am still
+       getting empty space on my time-line.
+    b) Incrasing numb of preprocessing threads and capacity of string_file_producer did not get rid of the empty time-line
+       time so I am setting back to 4
+    c) Getting rid of variable summaries on the (weights biases) did not alter run sess.run([optimizer]) time at all
+       so it seems like those can simply remain.
+
