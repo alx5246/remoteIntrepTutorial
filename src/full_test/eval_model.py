@@ -129,5 +129,5 @@ if __name__ == '__main__':
     batch_size = 200
     n_classes = 10
     n_epochs = 300
-    delay_time = 1
+    delay_time = 8
     run_training(FILE_NAMES, batch_size, n_classes, delay_time, n_epochs)
