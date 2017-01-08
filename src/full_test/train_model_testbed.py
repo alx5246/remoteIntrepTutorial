@@ -4,13 +4,12 @@
 # This is where we run the whole thing, but also where I mess with time-lines and what not to figure out how to best
 # run and optimize everything.
 
+
 import tensorflow as tf
 from tensorflow.python.client import timeline
 import time
 import read_data as rd
-import network_model as nm
-import eval_model as ev
-
+import network_model_0 as nm0
 import os
 
 # Make sure we set the visable CUDA devices
@@ -38,7 +37,7 @@ def run_training(train_filenames, batch_size, n_classes, n_epochs=1):
 
         with tf.device('/gpu:0'):
             # Create the network graph
-            prediction = nm.generate_Conv_Network(images, batch_size, n_classes)
+            prediction = nm0.generate_Conv_Network(images, batch_size, n_classes, batch_norm=True, is_training=True)
             # Now we generate a cost function (so tf knows what this is)
             with tf.name_scope('calc_loss'):
                 losses = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prediction, labels, name='loss_calc_softmax'), name='mean_loss')
@@ -184,7 +183,7 @@ if __name__ == '__main__':
                  'cifar-10-batches-bin/data_batch_5.bin']
     batch_size = 100
     n_classes = 10
-    n_epochs = 3
+    n_epochs = 1
     run_training(filenames, batch_size, n_classes, n_epochs)
     #ev.run_training(filenames, batch_size, n_classes, n_epochs=1)
     #ev.run_training(filenames, batch_size, n_classes, n_epochs=1)

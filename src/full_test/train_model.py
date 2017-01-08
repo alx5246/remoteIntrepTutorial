@@ -9,7 +9,7 @@ import tensorflow as tf
 from tensorflow.python.client import timeline
 import time
 import read_data as rd
-import network_model as nm
+import network_model_0 as nm0
 
 import os
 
@@ -53,11 +53,11 @@ def run_training(train_filenames, batch_size, n_classes, n_epochs=1):
 
         # Pin as much to the GPU as possible here: create graph, loss, and optimizer
         with tf.device('/gpu:0'):
-            prediction = nm.generate_Conv_Network(images, batch_size, n_classes)
+            prediction = nm0.generate_Conv_Network(images, batch_size, n_classes, batch_norm=True, is_training=True)
             with tf.name_scope('calc_loss'):
                 losses = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prediction, labels, name='loss_calc_softmax'), name='mean_loss')
             with tf.name_scope('optimizer'):
-                optimizer = tf.train.AdamOptimizer(learning_rate=.0005).minimize(losses, name='adam_optim_min')
+                optimizer = tf.train.AdamOptimizer(learning_rate=.001).minimize(losses, name='adam_optim_min')
 
         # Find accuracy
         with tf.device('/gpu:0'):
@@ -137,7 +137,7 @@ def run_training(train_filenames, batch_size, n_classes, n_epochs=1):
 if __name__ == '__main__':
     batch_size = 500
     n_classes = 10
-    n_epochs = 300
+    n_epochs = 100
     run_training(FILE_NAMES, batch_size, n_classes, n_epochs)
 
 

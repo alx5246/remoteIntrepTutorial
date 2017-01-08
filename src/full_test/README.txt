@@ -3,6 +3,8 @@ December 2016
 
 README for all files in src/full_test
 
+To be specific, all code is written for a single GPU (though evaluate and train will be run on different GPUs)
+
 Here I want to play with a full test on the GPU, specifically with proper allocation of
 a) Things pinned to GPU vs CPU
 b) Separate graphs (but with shared and reinstantiated variables) for training and testing as this seems to be the norm.
@@ -84,7 +86,7 @@ What have I learned here?
 2) Finally got the SEPERATE EVALUTE METHOD to work by first calling an initializer() op, then restoring a saved checkpoint, but
     using a special call: saver = tf.train.Saver(tf.trainable_variables())
 
-3) Major time savings by NOT pinning variables to CPU!
+3) Minor time savings by NOT pinning variables to CPU!
     In teh "cifar10.py" example, the authors pinned the network variables to the CPU.. so I did the same. However, when
     I pinned these to the GPU, things went a bit FASTER!. But I have still have issues, like much blank time in my
     time-line

@@ -6,7 +6,7 @@
 import tensorflow as tf
 from tensorflow.python.client import timeline
 import read_data as rd
-import network_model as nm
+import network_model_0 as nm0
 import os
 import time
 
@@ -33,7 +33,7 @@ def run_training(test_filenames, batch_size, n_classes, delay_time, n_epochs=1):
 
         with tf.device('/gpu:0'):
             # Create the network graph
-            prediction = nm.generate_Conv_Network(images, batch_size, n_classes)
+            prediction = nm0.generate_Conv_Network(images, batch_size, n_classes, batch_norm=True, is_training=False)
 
             with tf.name_scope('accuracy'):
                 # Find accuracy, I think I can run these on the GPU
@@ -50,7 +50,10 @@ def run_training(test_filenames, batch_size, n_classes, delay_time, n_epochs=1):
         with tf.device('/cpu:0'):
 
             # Create saver for writing training checkpoints, using this "trainable_variables" seems to have helped.
-            saver = tf.train.Saver(tf.trainable_variables(), name='saver_loader')
+            # Howeer once I stated to include batch-norms I had to get rid of that because some of my variables were
+            # not trainable.
+            #saver = tf.train.Saver(tf.trainable_variables(), name='saver_loader')
+            saver = tf.train.Saver( name='saver_loader')
 
             # Now prepare all summaries (these following lines will be be based on the tensorflow version!)
             # Tensor Flow r0.12
@@ -126,8 +129,8 @@ if __name__ == '__main__':
     # My run-time on train is about 10.6 seconds
     # So evalue should rest for about 8 seconds or so
 
-    batch_size = 200
+    batch_size = 500
     n_classes = 10
-    n_epochs = 300
-    delay_time = 8
+    n_epochs = 150
+    delay_time = 2
     run_training(FILE_NAMES, batch_size, n_classes, delay_time, n_epochs)
