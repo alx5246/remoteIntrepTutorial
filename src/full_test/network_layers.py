@@ -117,10 +117,15 @@ def gen_max_pooling(input, kernel_shape, strides):
 def gen_hidden_layer(input, weight_shape, bias_shape, batch_norm=True, is_training=True):
     """
     DESCRIPTION
-    We are assuming all the reshaping has been done outside already!
+    Generate a hidden layer (non convolution and fully connected).
+    NOTES
+    Assume the input is already in the correct [nBatchs, mFlattened] size.
     :param input: input tensor, ie [batch_size, length of flattened input] <- if the former layer was a conv layer flattened!
     :param kernel_shape: the shape of the weights, ie, [length of flattened input, number of hidden neurons]
-    :param bias_shape:
+    :param bias_shape: the shape of the bias, ie [32] if we have 32 hidden neuons.
+    :param batch_norm: boolean, True means we apply a batch_norm before every ReLU
+    :param is_training: boolean, needs to be set to true if training, and false is evaluating, this is for setting up
+           the batch_norm correctly.
     :return:
     """
     weights = _variable_on_cpu("weights", weight_shape, initializer=tf.random_normal_initializer())
@@ -148,7 +153,7 @@ def gen_output_layer(input, weight_shape, bias_shape):
     We are assuming all the reshaping has been done outside already!
     :param input: input tensor, ie [batch_size, length of flattened input] <- if the former layer was a conv layer flattened!
     :param kernel_shape: the shape of the weights, ie, [length of flattened input, number of hidden neurons]
-    :param bias_shape:
+    :param bias_shape: the size of the bias, ie [64] if there are 64 outputs
     :return:
     """
     weights = _variable_on_cpu("weights", weight_shape, initializer=tf.random_normal_initializer())
@@ -170,18 +175,20 @@ def batch_normalization_wrapper(inputs, ten_shape, is_training, decay=.999, epsi
     dimension of the inputs!!!!!!
     This is my version of that in http://r2rt.com/implementing-batch-normalization-in-tensorflow.html
     Also see https://gist.github.com/tomokishii/0ce3bdac1588b5cca9fa5fbdf6e1c412 to see how to handle convolution types
-    :param inputs:
+    :param inputs: Tensors before going through activation, so simply weights*prior-outputs
     :param ten_shape: integer, depth of input map
-    :param is_training:
-    :param decay:
-    :return:
+    :param is_training: boolean, very important, must be set to False if doing an evaluation
+    :param decay: The is for exponential moving average which we use to keep track of the gloabl values of the mean
+           and variance
+    :return: batch-normed tensor, should be same size as input tensor
     """
     # The variables that will be used during during training to hold mean and var or a particular input batch. These
     # are used only during training epochs.
     bn_scale = _variable_on_gpu('bn_scaling', ten_shape, initializer=tf.constant_initializer(value=1.0, dtype=tf.float32))
     bn_beta = _variable_on_gpu('bn_beta', ten_shape, initializer=tf.constant_initializer(value=0.0, dtype=tf.float32))
 
-    # The variables that get updated during learning, and are actually used however in testing.
+    # The variables that get updated during learning, and are actually used however in testing. So these are used and
+    # updated differently depending on if used suring evaluation or training.
     pop_bn_mean = _variable_on_gpu('pop_bn_mean', ten_shape,
                                    initializer=tf.constant_initializer(value=0.0, dtype=tf.float32),
                                    trainable=False)
@@ -205,7 +212,8 @@ def batch_normalization_wrapper(inputs, ten_shape, is_training, decay=.999, epsi
                 count += 1
             b_mean, b_var = tf.nn.moments(inputs, calc_moments_over_which_dimensions)
 
-            # Track with an exponential moving average (essentially making seperate op here for updating)
+            # Track with an exponential moving average. Because I am naming this "train_pop_bn_mean" I have a seperate
+            # op that can be run in training, and thus I can still use the variable "pop_bn_mean" later in evaluation.
             train_pop_bn_mean = tf.assign(pop_bn_mean, pop_bn_mean * decay + b_mean * (1 - decay), name='poulation_mean_calc')
             train_pop_bn_var = tf.assign(pop_bn_var, pop_bn_var * decay + b_var * (1 - decay), name='poulation_var_calc')
 

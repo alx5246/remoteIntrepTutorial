@@ -1,8 +1,11 @@
 # A. lons
 # Decemebr 2016
 #
+# DESCRIPTION
 # This is where we run the whole thing, but also where I mess with time-lines and what not to figure out how to best
-# run and optimize everything.
+# run and optimize everything. Thus this is reallly not for training by testing. For training and evaluation see
+# both train_model and eval_model. Those are designed to run independently and traing and evaluate the results in
+# seperate python instantiations.
 
 
 import tensorflow as tf

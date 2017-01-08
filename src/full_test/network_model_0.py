@@ -1,8 +1,11 @@
 # A. Lons
 # Jan. 2016
 #
+# DESCRIPTION
 # We put the networks in seperate python files, so it is easy to recall different and specific networks we formally
-# used in the past
+# used in the past.
+#
+# Network-Model-0 is simply a CNN with batch normalizations.
 
 
 import tensorflow as tf

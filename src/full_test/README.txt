@@ -14,7 +14,7 @@ Here in the code (I will document the results here) I will play with trying diff
 the run times.
 
 ########################################################################################################################
-References that helped here,
+References that helped here with my codeing
 
 1) Apparently the best way to train/test is to create seperate graphs for each.
     http://stackoverflow.com/questions/37801137/duplicate-a-tensorflow-graph
@@ -61,6 +61,12 @@ References that helped here,
     "/gpu:0 would be the 4th physical GPU, and "/gpu:1" would be the 2nd physical GPU."  This is incredibly insightful
     https://github.com/tensorflow/tensorflow/issues/5480
 
+12) How to do batch_normalization? How to get this to work because I need to bascially make two different graphs while
+    saving variables the correct way?
+    http://r2rt.com/implementing-batch-normalization-in-tensorflow.html
+    https://gist.github.com/tomokishii/0ce3bdac1588b5cca9fa5fbdf6e1c412 to see how to handle convolution types
+
+
 ########################################################################################################################
 What have I learned here?
 
@@ -83,8 +89,12 @@ What have I learned here?
         e) main input_pipeline pinned to GPU, input_pipline() unpinned, read_binary_image() unpinned
             RUNS
 
-2) Finally got the SEPERATE EVALUTE METHOD to work by first calling an initializer() op, then restoring a saved checkpoint, but
-    using a special call: saver = tf.train.Saver(tf.trainable_variables())
+2) Finally got the SEPERATE EVALUTE METHOD to work by first calling an initializer() op, then restoring a saved
+    checkpoint, but using a special call: saver = tf.train.Saver(tf.trainable_variables()). Also I only called
+    tf.initalize_local_variables(), I am not sure if this is necesary?
+
+    b) However, when using Batch-norm, variables are made that ARE NOT trainable, so I had to dump
+    tf.trainabel_variables(). It seems to be working still.
 
 3) Minor time savings by NOT pinning variables to CPU!
     In teh "cifar10.py" example, the authors pinned the network variables to the CPU.. so I did the same. However, when
