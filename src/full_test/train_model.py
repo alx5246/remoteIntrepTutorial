@@ -137,7 +137,7 @@ def run_training(train_filenames, batch_size, n_classes, n_epochs=1):
 if __name__ == '__main__':
     batch_size = 500
     n_classes = 10
-    n_epochs = 100
+    n_epochs = 1000
     run_training(FILE_NAMES, batch_size, n_classes, n_epochs)
 
 

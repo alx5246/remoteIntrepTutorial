@@ -8,7 +8,7 @@ To be specific, all code is written for a single GPU (though evaluate and train 
 Here I want to play with a full test on the GPU, specifically with proper allocation of
 a) Things pinned to GPU vs CPU
 b) Separate graphs (but with shared and reinstantiated variables) for training and testing as this seems to be the norm.
-
+c) Batch norming
 
 Here in the code (I will document the results here) I will play with trying different placements to see how it effects
 the run times.

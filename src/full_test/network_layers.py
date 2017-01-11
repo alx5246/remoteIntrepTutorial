@@ -1,9 +1,7 @@
 # A. lons
 # Decemebr 2016
 #
-# This is where I make my network models
-#
-#
+# Here are all the layers that can be put together to form a CNN network.
 
 import tensorflow as tf
 
@@ -51,7 +49,7 @@ def _variable_on_gpu(name, shape, initializer, trainable=True):
     """
     DESCRIPTION
     I have found that stikcing the variables onto the gpu is a bit faster, but it might not be in all circumstances
-    especially if I am dividing tarining across GPUs
+    especially if I am dividing training onto more than one GPU. This probably needs to be rexamined network to network.
     :param name: name of the variable
     :param shape: list of ints
     :param initializer: initializer for the tf.Variable

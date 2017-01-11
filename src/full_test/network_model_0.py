@@ -25,10 +25,10 @@ def generate_Conv_Network(images, batch_size, n_classes, batch_norm=True, is_tra
     # I do not need to duplicate scope, tf.variable_scope seesm to act like tf.name_scope when it comes to graph
     #with tf.name_scope('layer_1_conv'):
     with tf.variable_scope('layer_1_conv'):
-        conv_1 = nl.gen_2dconv(images, [3, 3, 3, 32], [1, 1, 1, 1], [32], batch_norm=batch_norm, is_training=is_training)
+        conv_1 = nl.gen_2dconv(images, [3, 3, 3, 64], [1, 1, 1, 1], [64], batch_norm=batch_norm, is_training=is_training)
 
     with tf.variable_scope('layer_1_1_conv'):
-        conv_1_1 = nl.gen_2dconv(conv_1, [5, 5, 32, 32], [1, 1, 1, 1], [32], batch_norm=batch_norm, is_training=is_training)
+        conv_1_1 = nl.gen_2dconv(conv_1, [3, 3, 64, 64], [1, 1, 1, 1], [64], batch_norm=batch_norm, is_training=is_training)
 
     # First max-pooling operation
     with tf.name_scope('layer_1_pool'):
@@ -37,14 +37,17 @@ def generate_Conv_Network(images, batch_size, n_classes, batch_norm=True, is_tra
     # Second convolution layer
     #with tf.name_scope('layer_2_conv'):
     with tf.variable_scope('layer_2_conv'):
-        conv_2 = nl.gen_2dconv(pool_1, [3, 3, 32, 64], [1, 1, 1, 1], [64], batch_norm=batch_norm, is_training=is_training)
+        conv_2 = nl.gen_2dconv(pool_1, [3, 3, 64, 128], [1, 1, 1, 1], [128], batch_norm=batch_norm, is_training=is_training)
 
     with tf.variable_scope('layer_2_1_conv'):
-        conv_2_1 = nl.gen_2dconv(conv_2, [5, 5, 64, 64], [1, 1, 1, 1], [64], batch_norm=batch_norm, is_training=is_training)
+        conv_2_1 = nl.gen_2dconv(conv_2, [3, 3, 128, 128], [1, 1, 1, 1], [128], batch_norm=batch_norm, is_training=is_training)
+
+    with tf.variable_scope('layer_2_2_conv'):
+        conv_2_2 = nl.gen_2dconv(conv_2_1, [3, 3, 128, 128], [1, 1, 1, 1], [128], batch_norm=batch_norm, is_training=is_training)
 
     # Second max-pooling layer
     with tf.name_scope('layer_2_pool'):
-        pool_2 = nl.gen_max_pooling(conv_2_1, [1, 2, 2, 1], [1, 2, 2, 1])
+        pool_2 = nl.gen_max_pooling(conv_2_2, [1, 2, 2, 1], [1, 2, 2, 1])
 
     # Now a hidden layer!
     #with tf.name_scope('layer_3_hidden'):
