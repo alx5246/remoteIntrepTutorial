@@ -4,6 +4,7 @@
 
 # IntelliJ project files
 .idea/**
+.idea
 *.iml
 *.gz
 #src/full_test/convert_png.py

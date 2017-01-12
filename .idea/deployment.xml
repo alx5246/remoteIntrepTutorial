@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="alexTempPython" createEmptyFolders="true" showDifferentInSync="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="alexTempPython" deleteMissingItems="true" createEmptyFolders="true" showEqualInSync="true" showDifferentInSync="false">
     <serverData>
       <paths name="alexTempPython">
         <serverdata>
           <mappings>
             <mapping deploy="/Documents/pythonTutorials/remoteIntrept" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="remoteConnection">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/Documents/tfTutorials/deployedProjects" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

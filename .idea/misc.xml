@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.5.2 (~/anaconda3/envs/tenflowr0_12gpu_py35/bin/python)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.5.2 (ssh://atlas2@lonsengatlas2.student.cwru.edu:22/home/atlas2/anaconda3/envs/tenflowr0_12gpu_py35/bin/python)" project-jdk-type="Python SDK" />
 </project>

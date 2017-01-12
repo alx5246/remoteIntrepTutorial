@@ -1,0 +1,241 @@
+# A. lons
+# Janurary 2017
+#
+# DESCRIPTION
+# This is where I am going to test splitting training over multiple GPUs.
+
+
+import tensorflow as tf
+from tensorflow.python.client import timeline
+import time
+import read_data as rd
+import network_model_0 as nm0
+import os
+
+# Make sure we set the visable CUDA devices
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+
+NUM_OF_TRAINING_EXAMPLES = 50000
+
+def tower_loss(scope, train_filenames, batch_size, n_epochs, n_classes, tower_index, gpu):
+    """
+    DESCRIPTION
+    This is going to be like tower-loss in cifar-10 multi-gpu example
+    :param scope:
+    :return:
+    """
+
+    # We give here the inputs for each tower-loss, which should be okay as the pipelines are pinned to the cpu already,
+    # but for good measure we add the with tf.device again.
+    with tf.device('/cpu:0'):
+        images, labels, _ = rd.input_pipline(train_filenames, batch_size=batch_size, numb_pre_threads=4,
+                                             num_epochs=n_epochs + 1, output_type='train')
+
+    # Build the network graph here
+    prediction = nm0.generate_Conv_Network(images, batch_size, n_classes, batch_norm=True, is_training=True, cpu=True, gpu=gpu)
+
+    # Now calculate losses .... we do this in the same way as the CIAF-10 example, which puts everything into a
+    # "collection" which I think they do because they also add weight decay to the losses
+    nm0.loss(prediction, labels)
+
+    # Now assembel all of the losses for the current tower only (taken from Cifar-10-multi-gpu example)
+    losses = tf.get_collection('losses', scope=scope)
+
+    # (From CIFAR-10 Multi-GPU example) Cacluate teh total loss for the current tower
+    total_loss = tf.add_n(losses, name='total_loss')
+
+    # (From CIFAR-10 Multi-GPU example)  Attach a scalar summayr to all indiviaul losses and the total loss;
+    # do the same for the averaged versions of losses
+    #with tf.device('/cpu:0'): # Need to make sure summaries are pinned to CPU!
+    #    for l in losses + [total_loss]:
+    #        loss_name = "%s" % l.op.name
+    #        tf.summary.scalar(loss_name, l)
+
+    return total_loss
+
+
+def average_gradients(tower_grads):
+    """
+    Calculate the average gradient for each shared variable across all towers. Note that this function provides a
+    synchronization point across all towers.
+    :param tower_grads: List of lists of (gradient, variable) tuples. The outer list is over individual gradients
+        (for each indiviual tower). The inner list is over the gradient calculation for each variable on the graph.
+    Returns:
+        List of pairs of (gradient, variable) where the gradient has been averaged
+        across all towers.
+    """
+    average_grads = []
+    # Iterate over all the different variable's gradient values
+    for grad_and_vars in zip(*tower_grads):
+
+        # Note that each grad_and_vars looks like the following: ((grad0_gpu0, var0_gpu0),..., (grad0_gpuN, var0_gpuN))
+        grads = []
+        for g, _ in grad_and_vars:
+
+            # Add 0 dimension to the gradients to represent the tower.
+            expanded_g = tf.expand_dims(g, 0)
+            # Append on a 'tower' dimension which we will average over below.
+            grads.append(expanded_g)
+
+        # At this point we shold have something like [ var_grad_0, var_grad_1, ... , var_grad_n] where n is the number
+        # of GPUs used and each 'var_grad_i' is a 2D tensor
+
+        # Average over the 'tower' dimension.
+        grad = tf.concat_v2(grads, 0)  # This will concat the tensors
+        grad = tf.reduce_mean(grad, 0) # Take average over all the different GPUs
+
+        # Keep in mind that the Variables are redundant because they are shared across towers. So .. we will just
+        # return the first tower's pointer to the Variable.
+        v = grad_and_vars[0][1] # This is the pointer to the variabel name
+        grad_and_var = (grad, v) # The averaged variables, with the pointer to variable
+        average_grads.append(grad_and_var)
+
+    return average_grads
+
+
+def train(train_filenames, batch_size, n_epochs, n_classes, learning_rate=.1, num_gpus=1):
+
+    with tf.Graph().as_default():
+        with tf.device('/cpu:0'):
+
+            # Create an optimzier that performs gradient descent, here we force a learning rate but this could be
+            # variable of course.
+            #grad_opt = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+
+            # Calculate the gradients for each model/tower
+            tower_grads = []
+            for i in range(num_gpus):
+                with tf.device('/gpu:%d' % i):
+                    with tf.name_scope("Tower_%d" % i) as scope:
+                        # Calculate the loss for one tower of the model. This function constructs the model but shares
+                        # the variable across all towers
+                        loss = tower_loss(scope, train_filenames, batch_size, n_epochs, n_classes, tower_index=i, gpu=i)
+
+                        # Reuse variables for the next tower?
+                        tf.get_variable_scope().reuse_variables()
+
+                        # Retain the summaries from the final tower..... sure
+                        #summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
+
+                        # Calculate the gradients for the batch of data on this CIFAR tower.
+                        grad_opt = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+                        grads = grad_opt.compute_gradients(loss)
+
+                        # Keep track of the gradients across all towers.
+                        tower_grads.append(grads)
+
+            # Calulate average grads
+            grads = average_gradients(tower_grads=tower_grads)
+
+            # Apply the gradients to adjust the shared variables
+            apply_gradient_op = grad_opt.apply_gradients(grads)
+
+            # Train
+            train_op = tf.group(apply_gradient_op)
+
+            # Create a session, this is done in how-to and cifar-10 example (in the cifar-10 the also have some configs).
+            # I also found a resource to help specifiy which GPUs to use and how to label them
+            sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, allow_soft_placement=False))
+
+            # Now prepare all summaries (these following lines will be be based on the tensorflow version!)
+            #merged = tf.summary.merge_all()  # <- these work in newer versions of TF
+            #summary_writer = tf.summary.FileWriter('summaries/train_summary', sess.graph)
+
+            # I need to run meta-data which will help for 'time-lines' and if I want to output more info
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+
+            # Create saver for writing training checkpoints
+            saver = tf.train.Saver(tf.global_variables())
+
+            # I am not sure if I need intialize both global and local or not. In the multi-gpu example, they only
+            # initialize the gloabl ones, but when I do that, I get empty queues!!! When I add local variables then
+            # this thing begins to run.
+            init_op = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer(), name='initialize_op')
+
+            # Run the init operation
+            sess.run(init_op)
+
+            # Make a coordinator,
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+            # Run training for a specific number of training examples.
+            counter = 0
+
+            for i in range(n_epochs):
+
+                num_training_batches = int(NUM_OF_TRAINING_EXAMPLES / batch_size)
+
+                # Track time for batches
+                run_batch_times = []
+
+                for j in range(num_training_batches - 3):
+                    start_time = time.time()
+
+                    # summary, _ = sess.run([merged, train_op], options=run_options, run_metadata=run_metadata)
+                    # summary_writer.add_summary(summary, counter)
+
+                    # _ = sess.run([train_op], options=run_options, run_metadata=run_metadata)
+
+                    _ = sess.run([train_op])
+
+                    counter += 1
+                    run_batch_times.append(time.time() - start_time)
+
+                # Time-line save Run
+                start_time = time.time()
+                _ = sess.run([train_op], options=run_options, run_metadata=run_metadata)
+                meta_run_time = time.time() - start_time
+                # Write out time-line data
+                t1 = timeline.Timeline(run_metadata.step_stats)
+                ctf = t1.generate_chrome_trace_format()
+                timeline_name = 'timeline%d.json' % i
+                with open(timeline_name, 'w') as f:
+                    f.write(ctf)
+                counter += 1
+
+                # Test over last batchs!
+                #acc = sess.run([accuracy])  # Accuracy
+                #prd = sess.run([correct_prediction])  # Prediction
+                #counter += 1
+
+                #print(prd)
+                print('Epoch ', i)
+                #print('  Accuracy:', acc)
+                avg_run_time = sum(run_batch_times) / float(len(run_batch_times))
+                print('  Avg batch run time :', avg_run_time)
+                print('  Number of batch runs: ', len(run_batch_times))
+                print('  Number of steps: ', len(run_batch_times)*(i+1))
+                print('  Time to run with meta-data: ', meta_run_time)
+
+                # Now save the graph!
+                path_to_checkpoint = saver.save(sess, 'summaries/chk_pt/model.ckpt', global_step=i)
+                print('  Path to check pont: ', path_to_checkpoint)
+
+            # with open("meta_data_run.txt", "w") as out:
+            #    out.write(str(run_metadata))
+
+            # Time-line save
+            # t1 = timeline.Timeline(run_metadata.step_stats)
+            # ctf = t1.generate_chrome_trace_format()
+            # with open('timeline.json', 'w') as f:
+            #    f.write(ctf)
+
+            # Now I have to clean up
+            #summary_writer.close()
+            coord.request_stop()
+            coord.join(threads)
+            sess.close()
+
+if __name__ == '__main__':
+    filenames = ['cifar-10-batches-bin/data_batch_1.bin',
+                 'cifar-10-batches-bin/data_batch_2.bin',
+                 'cifar-10-batches-bin/data_batch_3.bin',
+                 'cifar-10-batches-bin/data_batch_4.bin',
+                 'cifar-10-batches-bin/data_batch_5.bin']
+    batch_size = 1000
+    n_classes = 10
+    n_epochs = 300
+    #run_training(filenames, batch_size, n_classes, n_epochs)
+    train(filenames, batch_size, n_epochs, n_classes, learning_rate=.1, num_gpus=2)

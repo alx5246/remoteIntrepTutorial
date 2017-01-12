@@ -5,6 +5,14 @@
       <webServer id="6acd3e09-d012-4381-a43b-e866487370c3" name="alexTempPython" url="http://129.22.156.95">
         <fileTransfer port="0" accessType="LOCAL" />
       </webServer>
+      <webServer id="07f1e9dd-445d-488c-a644-15805d25afbc" name="remoteConnection" url="http://lonsengatlas2.student.cwru.edu">
+        <fileTransfer host="lonsengatlas2.student.cwru.edu" port="22" privateKey="$USER_HOME$/.ssh/id_rsa" rootFolder="/home/atlas2" accessType="SFTP" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
     </option>
   </component>
 </project>
