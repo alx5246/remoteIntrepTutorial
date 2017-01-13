@@ -16,12 +16,10 @@ def variable_summaries(var, name):
     with tf.device('/cpu:0'):
         with tf.name_scope('sumry'):
             with tf.name_scope(name):
-                with tf.device('/cpu:0'):
-                    mean = tf.reduce_mean(var)
+                mean = tf.reduce_mean(var)
                 tf.summary.scalar('mean', mean)
                 with tf.name_scope('stddev'):
-                    with tf.device('/cpu:0'):
-                        stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+                    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
                 tf.summary.scalar('stddev', stddev)
                 tf.summary.scalar('min', tf.reduce_min(var))
                 tf.summary.scalar('max', tf.reduce_max(var))
@@ -45,7 +43,7 @@ def _variable_on_cpu(name, shape, initializer, trainable=True):
     return var
 
 
-def _variable_on_gpu(name, shape, initializer, trainable=True):
+def _variable_on_gpu(name, shape, initializer, trainable=True, gpu=0):
     """
     DESCRIPTION
     I have found that striktly the variables onto the gpu is a bit faster, but it might not be in all circumstances
@@ -56,6 +54,7 @@ def _variable_on_gpu(name, shape, initializer, trainable=True):
     :param trainable: boolean, True means that this variable can be trained or altered by TF's optimizers
     :return: Variable object (ie, biases)
     """
+    gpu_str = '/gpu:%d' % gpu
     with tf.device('/gpu:0'):
         dtype = tf.float32
         var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype, trainable=trainable)
@@ -79,16 +78,16 @@ def batch_normalization_wrapper(inputs, ten_shape, is_training, decay=.999, epsi
     """
     # The variables that will be used during during training to hold mean and var or a particular input batch. These
     # are used only during training epochs.
-    bn_scale = _variable_on_gpu('bn_scaling', ten_shape, initializer=tf.constant_initializer(value=1.0, dtype=tf.float32))
-    bn_beta = _variable_on_gpu('bn_beta', ten_shape, initializer=tf.constant_initializer(value=0.0, dtype=tf.float32))
+    bn_scale = _variable_on_cpu('bn_scaling', ten_shape, initializer=tf.constant_initializer(value=1.0, dtype=tf.float32))
+    bn_beta = _variable_on_cpu('bn_beta', ten_shape, initializer=tf.constant_initializer(value=0.0, dtype=tf.float32))
 
     # The variables that get updated during learning, and are actually used however in testing. So these are used and
     # updated differently depending on if used suring evaluation or training.
-    pop_bn_mean = _variable_on_gpu('pop_bn_mean', ten_shape,
+    pop_bn_mean = _variable_on_cpu('pop_bn_mean', ten_shape,
                                    initializer=tf.constant_initializer(value=0.0, dtype=tf.float32),
                                    trainable=False)
     variable_summaries(pop_bn_mean, 'pop_bn_mean')
-    pop_bn_var = _variable_on_gpu('pop_bn_var', ten_shape,
+    pop_bn_var = _variable_on_cpu('pop_bn_var', ten_shape,
                                   initializer=tf.constant_initializer(value=1.0, dtype=tf.float32),
                                   trainable=False)
     variable_summaries(pop_bn_var, 'pop_bn_var')
@@ -160,7 +159,8 @@ def gen_2dconv(input, conv_shape, strides, bias_shape, batch_norm=True, is_train
 
 def res_block(input_tensor, output_depth, down_sample=True, batch_norm=True, is_training=True):
     """
-
+    DESCRIPTION
+        A typical res-net block
     :param input:
     :param conv_shape:
     :param strides:
@@ -210,4 +210,50 @@ def res_block(input_tensor, output_depth, down_sample=True, batch_norm=True, is_
     return res_output
 
 
+def gen_hidden_layer(input, weight_shape, bias_shape, batch_norm=True, is_training=True):
+    """
+    DESCRIPTION
+    Generate a hidden layer (non convolution and fully connected).
+    NOTES
+    Assume the input is already in the correct [nBatchs, mFlattened] size.
+    :param input: input tensor, ie [batch_size, length of flattened input] <- if the former layer was a conv layer flattened!
+    :param kernel_shape: the shape of the weights, ie, [length of flattened input, number of hidden neurons]
+    :param bias_shape: the shape of the bias, ie [32] if we have 32 hidden neuons.
+    :param batch_norm: boolean, True means we apply a batch_norm before every ReLU
+    :param is_training: boolean, needs to be set to true if training, and false is evaluating, this is for setting up
+           the batch_norm correctly.
+    :return:
+    """
+    weights = _variable_on_cpu("weights", weight_shape, initializer=tf.random_normal_initializer())
+    biases = _variable_on_cpu("biases", bias_shape, initializer=tf.random_normal_initializer())
+    variable_summaries(weights, 'weights')
+    variable_summaries(biases, 'biases')
 
+    add_bias_op = tf.nn.bias_add(tf.matmul(input, weights, name='mat_mul'), biases, name='add_biases_op')
+
+    if batch_norm:
+        with tf.name_scope('batch_norm'):
+            pre_activ = batch_normalization_wrapper(add_bias_op, bias_shape, is_training, decay=.999,
+                                                    epsilon=.0000000001, cpu=cpu, gpu=gpu)
+            output = tf.nn.relu(pre_activ, name='relu_op')
+    else:
+        output = tf.nn.relu(add_bias_op, name='relu_op')
+
+    return output
+
+
+def gen_output_layer(input, weight_shape, bias_shape, cpu=True, gpu=0):
+    """
+    DESCRIPTION
+    We are assuming all the reshaping has been done outside already!
+    :param input: input tensor, ie [batch_size, length of flattened input] <- if the former layer was a conv layer flattened!
+    :param kernel_shape: the shape of the weights, ie, [length of flattened input, number of hidden neurons]
+    :param bias_shape: the size of the bias, ie [64] if there are 64 outputs
+    :return:
+    """
+    weights = _variable_on_cpu("weights", weight_shape, initializer=tf.random_normal_initializer())
+    biases = _variable_on_cpu("biases", bias_shape, initializer=tf.random_normal_initializer())
+    variable_summaries(weights, 'weights')
+    variable_summaries(biases, 'biases')
+    output = tf.nn.bias_add(tf.matmul(input, weights, name='mat_mul'), biases, name='add_biases_op')
+    return output
